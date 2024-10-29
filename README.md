@@ -18,7 +18,7 @@ You can get Client ID and Client Secret from the created application.
 ### Keycloak
 
 Note: You don't need to setup the theme in `master` realm from v0.3.0.
-
+    
 1. Add `discord` Identity Provider in the realm which you want to configure.
 2. In the `discord` identity provider page, set `Client Id` and `Client Secret`.
 3. (Optional) Set Guild Id(s) to allow federation if you want.
