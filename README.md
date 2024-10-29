@@ -37,5 +37,5 @@ You can see `keycloak-discord-<version>.jar` under `target` directory.
 
 ## Author
 
-- [Hiroyuki Wada](https://github.com/wadahiro)
+- [Hiroyuki Wada](https://github.com/wadahiro?fixme)
 
