@@ -39,6 +39,11 @@
             <scope>provided</scope>
             <version>${version.keycloak}</version>
         </dependency>
+        <dependency>
+            <groupId>com.discord4j</groupId>
+            <artifactId>discord4j-core</artifactId>
+            <version>3.2.5</version>
+        </dependency>
     </dependencies>
 
     <build>

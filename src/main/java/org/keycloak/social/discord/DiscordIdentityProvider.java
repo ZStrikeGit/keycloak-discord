@@ -18,22 +18,24 @@
 package org.keycloak.social.discord;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import discord4j.core.*;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
+import org.keycloak.*;
+
 import org.keycloak.broker.oidc.AbstractOAuth2IdentityProvider;
 import org.keycloak.broker.oidc.mappers.AbstractJsonUserAttributeMapper;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.broker.social.SocialIdentityProvider;
-import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserModel;
+import org.keycloak.models.*;
+import org.keycloak.provider.InvalidationHandler;
 import org.keycloak.services.ErrorPageException;
 import org.keycloak.services.messages.Messages;
-import org.keycloak.storage.UserStorageManager;
+
+
 
 import java.util.Set;
 
@@ -49,7 +51,7 @@ public class DiscordIdentityProvider extends AbstractOAuth2IdentityProvider<Disc
     public static final String TOKEN_URL = "https://discord.com/api/oauth2/token";
     public static final String PROFILE_URL = "https://discord.com/api/users/@me";
     public static final String GROUP_URL = "https://discord.com/api/users/@me/guilds";
-    public static final String DEFAULT_SCOPE = "identify openid email";
+    public static final String DEFAULT_SCOPE = "openid";
     public static final String GUILDS_SCOPE = "guilds";
 
     public DiscordIdentityProvider(KeycloakSession session, DiscordIdentityProviderConfig config) {
@@ -67,44 +69,40 @@ public class DiscordIdentityProvider extends AbstractOAuth2IdentityProvider<Disc
     @Override
     protected String getProfileEndpointForValidation(EventBuilder event) {
         return PROFILE_URL;
-    }
 
+    }
     @Override
     protected BrokeredIdentityContext extractIdentityFromProfile(EventBuilder event, JsonNode profile) {
+        String id = getJsonProperty(profile,"id");
+        String username = getJsonProperty(profile,"username");
+        String email = getJsonProperty(profile,"email");
+        BrokeredIdentityContext user = new BrokeredIdentityContext(username,getConfig());
         RealmModel realm = session.realms().getRealmByName("auth");
 
-        String id = getJsonProperty(profile, "id");
-        String email = getJsonProperty(profile, "email");
-        String username = getJsonProperty(profile,"username");
-        var manager = new UserStorageManager(session);
-       // var existingUser= manager.getUserByEmail(realm,email).credentialManager().createStoredCredential(new CredentialModel().set);
-        UserModel existingUser;
+       //var idsp = realm.getIdentityProviderByAlias("discord");
 
-        BrokeredIdentityContext user = new BrokeredIdentityContext(id,getConfig());
+        //session.users().getUserByFederatedIdentity(realm,new FederatedIdentityModel("discord",id,username));
+       // this.retrieveToken(session,new FederatedIdentityModel())
         if (!session.users().searchForUserByUserAttributeStream(realm,"discord_id",id).toList().isEmpty()) {
-            existingUser = session.users().searchForUserByUserAttributeStream(realm,"discord_id",id).toList().get(0);
-            if (existingUser.hasRole(realm.getRole("discord_linked"))) {
-                user = new BrokeredIdentityContext(existingUser.getId(),getConfig());
-                user.setUserAttribute("discord_id",id);
-                user.setUserAttribute("discord_username",username);
-                user.setIdp(this);
-            }
+            user = new BrokeredIdentityContext(session.users().searchForUserByUserAttributeStream(realm,"discord_id",id).toList().get(0).getId(),getConfig());
         } else {
-            //if (manager.getUserById(realm,id) != null) {
-                //manager.getUserById(realm, id).grantRole(realm.getRole("discord_linked"));
-              //  user.addMapperGrantedRole("discord_linked");
-            //}
-            user.addMapperGrantedRole("discord_linked");
-            user.setUsername(getJsonProperty(profile, "username"));
-            user.setEmail(getJsonProperty(profile,email));
-            user.setId(id);
-            user.setUserAttribute("discord_id",id);
-//            user.setUserAttribute("discord_username",username);
-            user.setIdp(this);
+            if (session.users().getUserByFederatedIdentity(realm,new FederatedIdentityModel("discord",id,username)) == null) {
+                  log.log(Logger.Level.WARN,"new ErrorPageException(session, Response.Status.UNAUTHORIZED, Messages.INVALID_USER);");
+//                throw new AuthenticationFlowException("There is no account registered with the given Discord User!", AuthenticationFlowError.UNKNOWN_USER);
+//                throw new IdentityBrokerException("There is no account registered with the given Discord User!");
+//                user.setId(username);
+//                user.setUsername(username);
+//                user.setEmail(email);
+//                user.addMapperGrantedRole("discord_linked");
+            }
+//            else {
+//                throw new IdentityBrokerException("There is no account registered with the given Discord userUser!");
+//
+//                //user = new BrokeredIdentityContext(session.users().getUserByEmail(realm, email).getId(), getConfig());
+//               // user.addMapperGrantedRole("discord_linked");
+//            }
         }
-
-
-
+        user.setIdp(this);
         AbstractJsonUserAttributeMapper.storeUserProfileForMapper(user, profile, getConfig().getAlias());
 
         return user;
@@ -147,9 +145,9 @@ public class DiscordIdentityProvider extends AbstractOAuth2IdentityProvider<Disc
     @Override
     protected String getDefaultScopes() {
         if (getConfig().hasAllowedGuilds()) {
-            return DEFAULT_SCOPE + " " + GUILDS_SCOPE;
+            return getConfig().getScopes() + " " + GUILDS_SCOPE;
         } else {
-            return DEFAULT_SCOPE;
+            return getConfig().getScopes();
         }
     }
 }

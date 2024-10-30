@@ -51,14 +51,20 @@ public class DiscordIdentityProviderFactory extends AbstractIdentityProviderFact
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
-        return ProviderConfigurationBuilder.create()
-                .property()
+        ProviderConfigurationBuilder configBuilder = ProviderConfigurationBuilder.create();
+        configBuilder.property()
                 .name("allowedGuilds")
                 .type(ProviderConfigProperty.STRING_TYPE)
                 .label("Guild Id(s) to allow federation")
                 .helpText("If you want to allow federation for specific guild, enter the guild id. Please use a comma as a separator for multiple guilds.")
-                .add()
-                .build();
+                .add();
+        configBuilder.property()
+                .name("scopes")
+                .type(ProviderConfigProperty.STRING_TYPE)
+                .label("OAuth2 Scopes").defaultValue("oauth2")
+                .helpText("Defaults to \"openid\"; Please use a space as a separator for multiple scopes.")
+                .add();
+        return configBuilder.build();
     }
 
     @Override

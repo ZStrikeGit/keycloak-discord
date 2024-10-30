@@ -40,9 +40,15 @@ public class DiscordIdentityProviderConfig extends OAuth2IdentityProviderConfig 
     public String getAllowedGuilds() {
         return getConfig().get("allowedGuilds");
     }
+    public String getScopes() {
+        return getConfig().get("scopes");
+    }
 
     public void setAllowedGuilds(String allowedGuilds) {
         getConfig().put("allowedGuilds", allowedGuilds);
+    }
+    public void setScopes(String scopes) {
+        getConfig().put("scopes", scopes);
     }
 
     public boolean hasAllowedGuilds() {
