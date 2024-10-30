@@ -26,10 +26,14 @@ import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.broker.provider.IdentityBrokerException;
 import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.broker.social.SocialIdentityProvider;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.services.ErrorPageException;
 import org.keycloak.services.messages.Messages;
+import org.keycloak.storage.UserStorageManager;
 
 import java.util.Set;
 
@@ -67,12 +71,39 @@ public class DiscordIdentityProvider extends AbstractOAuth2IdentityProvider<Disc
 
     @Override
     protected BrokeredIdentityContext extractIdentityFromProfile(EventBuilder event, JsonNode profile) {
-        String id = getJsonProperty(profile, "id");
-        BrokeredIdentityContext user = new BrokeredIdentityContext(id,getConfig());
+        RealmModel realm = session.realms().getRealmByName("auth");
 
-        user.setUsername(getJsonProperty(profile, "username"));
-        user.setEmail(getJsonProperty(profile, "email"));
-        user.setIdp(this);
+        String id = getJsonProperty(profile, "id");
+        String email = getJsonProperty(profile, "email");
+        String username = getJsonProperty(profile,"username");
+        var manager = new UserStorageManager(session);
+       // var existingUser= manager.getUserByEmail(realm,email).credentialManager().createStoredCredential(new CredentialModel().set);
+        UserModel existingUser;
+
+        BrokeredIdentityContext user = new BrokeredIdentityContext(id,getConfig());
+        if (!session.users().searchForUserByUserAttributeStream(realm,"discord_id",id).toList().isEmpty()) {
+            existingUser = session.users().searchForUserByUserAttributeStream(realm,"discord_id",id).toList().get(0);
+            if (existingUser.hasRole(realm.getRole("discord_linked"))) {
+                user = new BrokeredIdentityContext(existingUser.getId(),getConfig());
+                user.setUserAttribute("discord_id",id);
+                user.setUserAttribute("discord_username",username);
+                user.setIdp(this);
+            }
+        } else {
+            //if (manager.getUserById(realm,id) != null) {
+                //manager.getUserById(realm, id).grantRole(realm.getRole("discord_linked"));
+              //  user.addMapperGrantedRole("discord_linked");
+            //}
+            user.addMapperGrantedRole("discord_linked");
+            user.setUsername(getJsonProperty(profile, "username"));
+            user.setEmail(getJsonProperty(profile,email));
+            user.setId(id);
+            user.setUserAttribute("discord_id",id);
+//            user.setUserAttribute("discord_username",username);
+            user.setIdp(this);
+        }
+
+
 
         AbstractJsonUserAttributeMapper.storeUserProfileForMapper(user, profile, getConfig().getAlias());
 
